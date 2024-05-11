@@ -43,6 +43,7 @@ export async function continueConversation(messages: CoreMessage[]) {
               n: 1,
               size: "1024x1024",
             });
+
             console.log("response", response);
 
             const imageUrl = response.data[0].url;
@@ -50,17 +51,23 @@ export async function continueConversation(messages: CoreMessage[]) {
             console.log("action called image url here", imageUrl);
             if (imageUrl) {
               console.log("has image url", imageUrl);
+
               data.imageUrl = imageUrl ?? "";
+
               // eslint-disable-next-line @next/next/no-img-element
               imgStream.done(<img src={imageUrl} alt="generated image"></img>);
+
               return `imageUrl: ${imageUrl}`;
             }
 
             imgStream.done(<div>no image</div>);
+
             return "couldn't generate image";
           } catch (error) {
             console.error("error", error);
+
             imgStream.done(<div>no image</div>);
+
             return `couldn't generate image ${error}`;
           }
         },

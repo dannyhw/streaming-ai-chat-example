@@ -29,6 +29,7 @@ export default function Home() {
         <header className="flex w-full h-16 items-center gap-1 border-b bg-background p-4">
           <h1 className="text-xl font-semibold">Chat</h1>
         </header>
+
         <main className="flex flex-col gap-4 p-4 flex-1 w-full overflow-hidden">
           <div className="flex flex-1 flex-col rounded-xl bg-muted/50 p-4 overflow-y-scroll">
             <div className="flex-1 gap-4 flex-col">
@@ -38,6 +39,7 @@ export default function Home() {
                     {m.message.role === "user" ? "User: " : "AI: "}
                     {m.message.content as string}
                   </div>
+
                   {m.image && (
                     <ErrorBoundary errorComponent={() => <p>error</p>}>
                       <div className="my-4">{m.image}</div>
@@ -98,18 +100,23 @@ export default function Home() {
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Paperclip className="size-4" />
+
                     <span className="sr-only">Attach file</span>
                   </Button>
                 </TooltipTrigger>
+
                 <TooltipContent side="top">Attach File</TooltipContent>
               </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Mic className="size-4" />
+
                     <span className="sr-only">Use Microphone</span>
                   </Button>
                 </TooltipTrigger>
+
                 <TooltipContent side="top">Use Microphone</TooltipContent>
               </Tooltip>
               <Button type="submit" size="sm" className="ml-auto gap-1.5">
