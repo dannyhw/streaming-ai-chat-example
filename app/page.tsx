@@ -32,10 +32,16 @@ export default function Home() {
 
         <main className="flex flex-col gap-4 p-4 flex-1 w-full overflow-hidden">
           <div className="flex flex-1 flex-col rounded-xl bg-muted/50 p-4 overflow-y-scroll">
-            <div className="flex-1 gap-4 flex-col">
+            <div className="flex-1 gap-5 flex-col flex">
               {messages.map((m, i) => (
                 <div key={i} className="flex flex-col">
-                  <div className="whitespace-pre-wrap flex">
+                  <div
+                    className={`whitespace-pre-wrap flex ${
+                      m.message.role === "user"
+                        ? "text-slate-500"
+                        : "text-slate-950"
+                    }`}
+                  >
                     {m.message.role === "user" ? "User: " : "AI: "}
                     {m.message.content as string}
                   </div>
