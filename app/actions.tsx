@@ -18,7 +18,8 @@ export async function continueConversation(messages: CoreMessage[]) {
   "use server";
   const data = { imageUrl: "" };
 
-  const imgStream = createStreamableUI(<p>loading...</p>);
+  const imgStream = createStreamableUI();
+  // const imgStream = createStreamableUI(<p>loading...</p>);
 
   const result = await streamText({
     model: openai(GPT_3),
@@ -36,6 +37,7 @@ export async function continueConversation(messages: CoreMessage[]) {
         }),
         execute: async ({ image_description }) => {
           console.log("hererere");
+
           try {
             const response = await openAI.images.generate({
               prompt: image_description,

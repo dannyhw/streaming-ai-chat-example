@@ -14,14 +14,132 @@ import {
 import { type CoreMessage } from "ai";
 import { readStreamableValue } from "ai/rsc";
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { continueConversation } from "./actions";
 
-type MessageList = Array<{ message: CoreMessage; image?: any }>;
+type MessageList = Array<{ message: CoreMessage; image?: any; audio?: Blob }>;
 
+let chunks: Blob[] = [];
+
+function useRecordAudio(onSuccess: (audio: Blob, transcript: string) => void) {
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+
+  const [isRecording, setRecording] = useState(false);
+
+  const [audio, setAudio] = useState<Blob | null>(null);
+
+  const [transcript, setTranscript] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      if (
+        navigator.mediaDevices &&
+        navigator.mediaDevices.getUserMedia &&
+        !recorder
+      ) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(
+            // constraints - only audio needed for this app
+            {
+              audio: true,
+            }
+          );
+
+          const mediaRecorder = new MediaRecorder(stream);
+
+          setRecorder(mediaRecorder);
+
+          mediaRecorder.ondataavailable = (e) => {
+            chunks.push(e.data);
+          };
+
+          mediaRecorder.onstart = (e) => {
+            console.log("recorder started");
+
+            setRecording(true);
+          };
+
+          mediaRecorder.onstop = async (e) => {
+            console.log("recorder stopped");
+
+            const blob = new Blob(chunks, { type: "audio/ogg; codecs=opus" });
+
+            setAudio(blob);
+
+            chunks = [];
+
+            const form = new FormData();
+
+            form.append("audio", blob);
+
+            setRecording(false);
+
+            const result = await fetch("/api/whisper", {
+              method: "POST",
+              body: form,
+            });
+
+            if (result.ok) {
+              const jsonRes = await result.json();
+
+              console.log(jsonRes);
+
+              if (jsonRes.transcript?.text) {
+                setTranscript(jsonRes.transcript.text);
+
+                onSuccess?.(blob, jsonRes.transcript.text);
+              }
+            }
+          };
+        } catch (error) {
+          console.error(`The following getUserMedia error occurred: ${error}`);
+        }
+      }
+    })();
+  }, [onSuccess, recorder]);
+
+  return {
+    recorder,
+    isRecording,
+    audio,
+    transcript,
+  };
+}
 export default function Home() {
   const [messages, setMessages] = useState<MessageList>([]);
+
   const [input, setInput] = useState("");
+
+  const onRecordSuccess = useCallback(
+    async (audio: Blob, transcript: string) => {
+      const newMessages: MessageList = [
+        ...messages,
+        { message: { content: transcript, role: "user" }, audio },
+      ];
+
+      setMessages(newMessages);
+
+      setInput("");
+
+      const result = await continueConversation(
+        newMessages.map((m) => m.message)
+      );
+
+      for await (const content of readStreamableValue(result.message)) {
+        setMessages([
+          ...newMessages,
+          {
+            message: { role: "assistant", content: content as string },
+            image: result.image,
+          },
+        ]);
+      }
+    },
+    [messages]
+  );
+
+  const { recorder, audio, isRecording, transcript } =
+    useRecordAudio(onRecordSuccess);
 
   return (
     <TooltipProvider>
@@ -46,11 +164,17 @@ export default function Home() {
                     {m.message.content as string}
                   </div>
 
-                  {m.image && (
-                    <ErrorBoundary errorComponent={() => <p>error</p>}>
-                      <div className="my-4">{m.image}</div>
-                    </ErrorBoundary>
-                  )}
+                  <div className="my-4">
+                    {m.image && (
+                      <ErrorBoundary errorComponent={() => <p>error</p>}>
+                        <div>{m.image}</div>
+                      </ErrorBoundary>
+                    )}
+
+                    {m.audio && (
+                      <audio src={URL.createObjectURL(m.audio)} controls />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -104,7 +228,7 @@ export default function Home() {
             <div className="flex items-center p-3 pt-0">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" type="button">
                     <Paperclip className="size-4" />
 
                     <span className="sr-only">Attach file</span>
@@ -116,8 +240,25 @@ export default function Home() {
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Mic className="size-4" />
+                  <Button
+                    variant={isRecording ? "default" : "ghost"}
+                    type="button"
+                    onMouseDown={() => {
+                      console.log("start recording");
+
+                      recorder?.start();
+                    }}
+                    onMouseUp={() => {
+                      console.log("stop recording");
+
+                      recorder?.stop();
+                    }}
+                    size="icon"
+                  >
+                    <Mic
+                      className="size-4"
+                      color={isRecording ? "white" : undefined}
+                    />
 
                     <span className="sr-only">Use Microphone</span>
                   </Button>
